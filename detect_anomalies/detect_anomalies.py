@@ -35,7 +35,7 @@ df['anomaly_score'] = anomaly_scores
 df['z_score'] = z_scores
 df['is_anomaly'] = model.predict(X_scaled) == -1
 
-# Classify only anomalies
+# Classify all entries into threat levels
 def classify_threat(z):
     if z > 3:
         return 'High'
@@ -44,8 +44,7 @@ def classify_threat(z):
     else:
         return 'Low'
 
-df['threat_level'] = None
-df.loc[df['is_anomaly'], 'threat_level'] = df.loc[df['is_anomaly'], 'z_score'].apply(classify_threat)
+df['threat_level'] = df['z_score'].apply(classify_threat)
 
 # Save full results
 with open('model_data/analysis_results.json', 'w') as f:
@@ -75,8 +74,8 @@ if not anomalies.empty:
 # Plot
 plt.figure(figsize=(10, 6))
 plt.hist(z_scores, bins=50, alpha=0.7)
-plt.axvline(x=2, color='orange', linestyle='--', label='Moderate Threat (Z>2)')
-plt.axvline(x=3, color='red', linestyle='--', label='High Threat (Z>3)')
+plt.axvline(x=2, color='orange', linestyle='--', label='Moderate Risk (Z>2)')
+plt.axvline(x=3, color='red', linestyle='--', label='High Risk (Z>3)')
 plt.title('Distribution of Anomaly Z-Scores')
 plt.xlabel('Z-Score')
 plt.ylabel('Count')
@@ -88,8 +87,8 @@ print("\nANALYSIS SUMMARY")
 print("-" * 50)
 print(f"Total log entries: {len(df)}")
 print(f"Anomalies detected: {len(anomalies)} ({len(anomalies)/len(df)*100:.2f}%)")
-print("\nThreat level distribution (anomalies only):")
+print("\nThreat level distribution (entire dataset):")
 for level in ['High', 'Moderate', 'Low']:
-    count = (anomalies['threat_level'] == level).sum()
-    print(f"  {level}: {count} ({count/len(anomalies)*100:.2f}%)")
+    count = (df['threat_level'] == level).sum()
+    print(f"  {level}: {count} ({count/len(df)*100:.2f}%)")
 print("-" * 50)
