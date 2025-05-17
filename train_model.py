@@ -109,11 +109,11 @@ df['is_anomaly'] = predictions == -1
 
 
 def classify_threat(z):
-    if z > 3:
+    if z < -2:
         return 'High'
-    elif z > 2:
+    elif -1> z > -2:
         return 'Moderate'
-    elif z > 1:
+    elif z > -1:
         return 'Low'
     else:
         return 'Normal'
