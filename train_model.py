@@ -10,14 +10,13 @@ import matplotlib.pyplot as plt
 
 os.makedirs('model', exist_ok=True)
 
-
 print("Loading log files...")
 log_files = glob.glob('data/logs/*.json')
 
 if not log_files:
     print("No log files found! Please run download_logs.py first.")
     exit(1)
-
+len
 all_data = []
 for log_file in log_files:
     print(f"Processing {log_file}...")
@@ -25,34 +24,44 @@ for log_file in log_files:
         logs = json.load(f)
     
     for log in logs:
-      
+        
         features = {}
         
+     
         if 'data' in log and isinstance(log['data'], dict):
             data = log['data']
-      
+            
             if 'bytes' in data:
                 features['bytes'] = int(data.get('bytes', 0))
             if 'packets' in data:
                 features['packets'] = int(data.get('packets', 0))
+            
+           
             if 'start' in data and 'end' in data:
                 features['duration'] = int(data.get('end', 0)) - int(data.get('start', 0))
-         
-            if 'eventName' in data:
-                
-                features['event_type'] = hash(data.get('eventName', '')) % 10000
-            if 'sourceIPAddress' in data:
-                
-                features['source_ip'] = hash(data.get('sourceIPAddress', '')) % 10000
-   
+        
+            if 'srcaddr' in data:
+               
+                features['src_ip_hash'] = hash(data.get('srcaddr', '')) % 10000
+            if 'dstaddr' in data:
+                features['dst_ip_hash'] = hash(data.get('dstaddr', '')) % 10000
+            if 'srcport' in data and data['srcport'].isdigit():
+                features['src_port'] = int(data['srcport'])
+            if 'dstport' in data and data['dstport'].isdigit():
+                features['dst_port'] = int(data['dstport'])
+            if 'protocol' in data and data['protocol'].isdigit():
+                features['protocol'] = int(data['protocol'])
+  
         if 'timestamp' in log:
             features['timestamp'] = log['timestamp']
-     
+    
         features['log_file'] = os.path.basename(log_file)
         features['log_stream'] = log.get('stream', '')
-     
+        
+        
         if features:
             all_data.append(features)
+
 
 if not all_data:
     print("No usable features found in log data!")
@@ -60,6 +69,7 @@ if not all_data:
 
 df = pd.DataFrame(all_data)
 print(f"Loaded {len(df)} log entries with features")
+
 
 numeric_columns = df.select_dtypes(include=['number']).columns.tolist()
 feature_columns = [col for col in numeric_columns if col not in ['timestamp', 'log_file', 'log_stream']]
@@ -70,6 +80,7 @@ if len(feature_columns) < 1:
 
 print(f"Using features for training: {feature_columns}")
 
+
 X = df[feature_columns].fillna(0)
 
 
@@ -79,18 +90,18 @@ X_scaled = scaler.fit_transform(X)
 
 print("Training Isolation Forest model...")
 model = IsolationForest(
-    contamination=0.05, 
+    contamination=0.05,
     random_state=42
 )
 model.fit(X_scaled)
 
-scores = model.decision_function(X_scaled) 
+
+scores = model.decision_function(X_scaled)  
 predictions = model.predict(X_scaled) 
 anomaly_scores = -scores
 
 
 z_scores = (anomaly_scores - np.mean(anomaly_scores)) / np.std(anomaly_scores)
-
 
 df['anomaly_score'] = anomaly_scores
 df['z_score'] = z_scores
@@ -108,6 +119,7 @@ def classify_threat(z):
         return 'Normal'
 
 df['threat_level'] = df['z_score'].apply(classify_threat)
+
 
 print("Saving model and results...")
 with open('model/isolation_forest.pkl', 'wb') as f:
@@ -132,7 +144,7 @@ if not anomalies.empty:
             'threat_level': row['threat_level']
         }
         
-      
+       
         for col in feature_columns:
             anomaly[col] = float(row[col]) if pd.notnull(row[col]) else 0
         
@@ -152,6 +164,7 @@ plt.xlabel('Z-Score (higher = more anomalous)')
 plt.ylabel('Count')
 plt.legend()
 plt.savefig('model/z_score_distribution.png')
+
 
 print("\nANALYSIS SUMMARY")
 print("-" * 50)

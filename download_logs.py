@@ -7,9 +7,8 @@ from datetime import timedelta
 
 os.makedirs('data/logs', exist_ok=True)
 
-
 region = 'us-east-1'  
-log_group = '/aws/vpc/flowlogs' 
+log_group = 'threat-detection-logs'  
 
 client = boto3.client('logs', region_name=region)
 
@@ -21,7 +20,6 @@ streams_response = client.describe_log_streams(
     limit=5 
 )
 
-
 end_time = int(datetime.datetime.now().timestamp() * 1000)
 start_time = end_time - (24 * 60 * 60 * 1000)  
 
@@ -29,8 +27,7 @@ start_time = end_time - (24 * 60 * 60 * 1000)
 for stream in streams_response['logStreams']:
     stream_name = stream['logStreamName']
     print(f"Downloading logs from stream: {stream_name}")
-    
-
+  
     events_response = client.get_log_events(
         logGroupName=log_group,
         logStreamName=stream_name,
@@ -39,19 +36,18 @@ for stream in streams_response['logStreams']:
         limit=1000
     )
     
-   
+
     if events_response['events']:
         processed_logs = []
         
         for event in events_response['events']:
-           
+          
             try:
                 message = json.loads(event['message'])
             except:
                
                 message = {'raw_message': event['message']}
-            
- 
+           
             log_entry = {
                 'timestamp': event['timestamp'],
                 'timestamp_formatted': datetime.datetime.fromtimestamp(event['timestamp']/1000).isoformat(),
@@ -60,7 +56,6 @@ for stream in streams_response['logStreams']:
             }
             
             processed_logs.append(log_entry)
-        
        
         if processed_logs:
             filename = f"data/logs/{stream_name.replace('/', '_')}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
